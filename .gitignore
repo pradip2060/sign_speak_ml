@@ -1,0 +1,9 @@
+.venv/
+__pycache_/
+*.pyc
+*.h5
+**asl_*/
+**models/
+.DS_Store
+*.zip
+custom_test/
