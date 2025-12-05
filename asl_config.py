@@ -7,6 +7,7 @@ ASL_CLASSES = [
     "NO",
     "SORRY",
     "HELP",
+    "PEACE",
 ]
 
 # 表示用マッピング
@@ -19,6 +20,7 @@ LABEL_MAP = {
     "NO": "No",
     "SORRY": "Sorry",
     "HELP": "Help",
+    "PEACE": "Peace",
 }
 
 VIDEO_WIDTH = 1280
