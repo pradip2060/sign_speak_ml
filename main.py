@@ -64,4 +64,5 @@ async def predict_video(file: UploadFile = File(...)):
 
 if __name__ == "__main__":
     import uvicorn
+    # 本番環境では 0.0.0.0 で全インターフェースをリッスン
     uvicorn.run(app, host="0.0.0.0", port=8000)
