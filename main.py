@@ -27,6 +27,10 @@ app.add_middleware(
 
 model = tf.keras.models.load_model(MODEL_PATH)
 
+@app.get("/")
+async def index():
+    return {"message": "Hello, this is the gesture prediction API."}
+
 @app.post("/predict")
 async def predict_video(file: UploadFile = File(...)):
     # 1. 一時ファイルとして保存
