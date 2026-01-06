@@ -8,6 +8,7 @@ from fastapi import FastAPI, UploadFile, File
 # CORS設定用のインポートを追加
 from fastapi.middleware.cors import CORSMiddleware
 from predict_gesture import extract_landmark_vec, CLASSES, T, LAND_DIM, MODEL_PATH
+from asl_config import LABEL_MAP
 
 app = FastAPI()
 
@@ -61,9 +62,10 @@ async def predict_video(file: UploadFile = File(...)):
     prediction = model.predict(seq, verbose=0)[0]
     
     idx = int(np.argmax(prediction))
-    label = CLASSES[idx]
     prob = float(prediction[idx])
 
+    key = CLASSES[idx]
+    label = LABEL_MAP[key]
     return {"label": label, "probability": prob}
 
 if __name__ == "__main__":
