@@ -17,13 +17,10 @@ app = FastAPI()
 # ==============================
 app.add_middleware(
     CORSMiddleware,
-    # PHPが動作しているオリジン（http://localhost）を許可
-    # 開発用であれば ["*"] にすると全てのアクセスを許可します
-    #allow_origins=["http://localhost", "http://127.0.0.1"],
-    allow_origins=["*"],  # すべてのオリジンを許可
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # すべてのメソッド（GET, POSTなど）を許可
-    allow_headers=["*"],  # すべてのヘッダーを許可
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 model = tf.keras.models.load_model(MODEL_PATH)
@@ -50,9 +47,11 @@ async def predict_video(file: UploadFile = File(...)):
         all_landmarks.append(vec)
     cap.release()
     
+    # 一時ファイルを削除
     if os.path.exists(tmp_path):
         os.remove(tmp_path)
 
+    # シーケンス長をTに調整（短い場合はゼロパディング）
     if len(all_landmarks) < T:
         pad_len = T - len(all_landmarks)
         all_landmarks.extend([np.zeros(LAND_DIM)] * pad_len)
@@ -61,9 +60,11 @@ async def predict_video(file: UploadFile = File(...)):
     seq = np.array(all_landmarks[:T], dtype=np.float32).reshape(1, T, LAND_DIM)
     prediction = model.predict(seq, verbose=0)[0]
     
+    # 確率最大のクラスを取得
     idx = int(np.argmax(prediction))
     prob = float(prediction[idx])
 
+    # ラベルを取得
     key = CLASSES[idx]
     label = LABEL_MAP[key]
     return {"label": label, "probability": prob}
