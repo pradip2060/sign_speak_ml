@@ -8,3 +8,4 @@ __pycache_/
 *.zip
 custom_test/
 static/uploads/
+scp_model.sh
