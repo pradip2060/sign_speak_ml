@@ -212,6 +212,8 @@ def main():
     )
 
     model.save(MODEL_PATH)
+    # 重みのみ保存（resave_mode.py 用）
+    model.save_weights('models/asl_weights_only.h5')
     print(f"✅ Saved model to {MODEL_PATH}")
 
 
