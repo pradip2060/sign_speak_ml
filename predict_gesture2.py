@@ -9,7 +9,8 @@ from asl_config import (
     START_MOV_THRESH, STOP_MOV_THRESH, START_FRAMES, STOP_FRAMES,
     HAND_WEIGHT, Z_SCALE, EXTENTION, POSE_DIM, HANDS_DIM,
     HAND_CONFIDENCE, POSE_CONFIDENCE,
-    VIDEO_WIDTH, VIDEO_HEIGHT
+    VIDEO_WIDTH, VIDEO_HEIGHT,
+    IMPORTANT_LM_WEIGHTS,
 )
 
 import os
@@ -25,7 +26,7 @@ from utils.draw_skelton import draw_skeleton_points
 # =====================================================
 # モデル読み込み
 # =====================================================
-MODEL_PATH = os.path.join(MODEL_DIR, "asl_lstm_landmarks.keras")
+MODEL_PATH = os.path.join(MODEL_DIR, "asl_lstm_landmarks_2.keras")
 model = tf.keras.models.load_model(MODEL_PATH)
 CLASSES = ASL_CLASSES
 
@@ -72,18 +73,25 @@ def extract_landmark_vec(frame_bgr: np.ndarray) -> np.ndarray:
     else:
         pose_arr = pose_arr[:POSE_DIM]
 
-    # ----- Hands -----
+    # ----- Hands (ここを学習時と完全に一致させる) -----
     hand_vals = []
     if hands_res.multi_hand_landmarks:
         for hand in hands_res.multi_hand_landmarks:
-            for lm in hand.landmark:
-                hand_vals.extend([
-                    lm.x,
-                    lm.y,
-                    lm.z * Z_SCALE
-                ])
+            for i, lm in enumerate(hand.landmark): # インデックス i を取得
+                # 1. Zスケールを適用
+                x = lm.x
+                y = lm.y
+                z = lm.z * Z_SCALE
+                
+                # 2. 学習時と同じ「単語共通のベース重み」×「部位別重み」を適用
+                # 推論時は単語が未確定なので base_weight には HAND_WEIGHT を使用
+                w = HAND_WEIGHT * IMPORTANT_LM_WEIGHTS.get(i, 1.0)
+                
+                hand_vals.extend([x * w, y * w, z * w])
 
-    hands_arr = np.array(hand_vals, dtype=np.float32) * HAND_WEIGHT
+    # ここでの * HAND_WEIGHT は削除（上のループ内で計算済みのため）
+    hands_arr = np.array(hand_vals, dtype=np.float32) 
+    
     if hands_arr.size < HANDS_DIM:
         hands_arr = np.pad(hands_arr, (0, HANDS_DIM - hands_arr.size))
     else:

@@ -7,7 +7,8 @@ ASL Landmark 時系列（JSON）学習: 改訂版
 """
 
 from asl_config import ASL_CLASSES, VIDEO_DIR, MODEL_DIR, EXTENTION
-from asl_config import T, POSE_DIM, HANDS_DIM, LAND_DIM, HAND_WEIGHT, Z_SCALE
+from asl_config import T, POSE_DIM, HANDS_DIM, LAND_DIM, HAND_WEIGHT_MAP, HAND_WEIGHT, Z_SCALE
+from asl_config import IMPORTANT_LM_WEIGHTS
 from asl_config import BATCH_SIZE, EPOCHS, SEED
 import os, json, sys
 import numpy as np
@@ -18,16 +19,16 @@ from sklearn.model_selection import train_test_split
 # 設定
 # ==============================
 CLASSES = ASL_CLASSES
-DATASET_DIR = VIDEO_DIR
+DATASET_DIR = VIDEO_DIR 
 
-MODEL_PATH = os.path.join(MODEL_DIR, "asl_lstm_landmarks.keras")
+MODEL_PATH = os.path.join(MODEL_DIR, "asl_lstm_landmarks_2.keras")
 
 os.makedirs(MODEL_DIR, exist_ok=True)
 
 # ==============================
 # JSON → (T,225)
 # ==============================
-def _frame_to_225(frm):
+def _frame_to_225(frm, base_weight):
     # pose
     pose_list = []
     for lm in frm.get("pose", []):
@@ -39,14 +40,17 @@ def _frame_to_225(frm):
     # hands
     hand_vals = []
     for hand in frm.get("hands", []):
-        for lm in hand:
+        for i, lm in enumerate(hand):
             x = lm.get("x_norm", 0.0)
             y = lm.get("y_norm", 0.0)
             z = lm.get("z_norm", 0.0) * Z_SCALE
-            hand_vals.extend([x, y, z])
+            # 重み付け
+            w = base_weight * IMPORTANT_LM_WEIGHTS.get(i, 1.0)
+            # 値を格納
+            hand_vals.extend([x * w, y * w, z * w])
 
     pose_arr = np.array(pose_list, dtype=np.float32)
-    hands_arr = np.array(hand_vals, dtype=np.float32) * HAND_WEIGHT
+    hands_arr = np.array(hand_vals, dtype=np.float32)
 
     # 長さ調整
     if pose_arr.size < POSE_DIM:
@@ -62,7 +66,7 @@ def _frame_to_225(frm):
     return np.concatenate([pose_arr, hands_arr], axis=0)  # 225
 
 
-def json_to_landmark_sequence(json_path, T=40):
+def json_to_landmark_sequence(json_path, T=40, weight=1.5):
     try:
         with open(json_path, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -74,7 +78,7 @@ def json_to_landmark_sequence(json_path, T=40):
     seq = []
 
     for frm in frames:
-        arr225 = _frame_to_225(frm)
+        arr225 = _frame_to_225(frm, weight)
         seq.append(arr225)
 
     # Tに揃える（短い場合ゼロ埋め / 長い場合切り捨て）
@@ -102,6 +106,9 @@ def load_dataset(dataset_dir, classes, T=40):
             print(f"⚠️ クラスフォルダなし: {folder}")
             continue
 
+        base_w = HAND_WEIGHT_MAP.get(cls, HAND_WEIGHT)
+        print(f"📦 Loading {cls} (weight: {base_w})")
+
         files = [f for f in os.listdir(folder) if f.lower().endswith(".json")]
         if len(files) == 0:
             print(f"⚠️ JSONなし: {folder}")
@@ -110,7 +117,7 @@ def load_dataset(dataset_dir, classes, T=40):
         files.sort()  # 安定のため
         for file in files:
             json_path = os.path.join(folder, file)
-            seq = json_to_landmark_sequence(json_path, T)
+            seq = json_to_landmark_sequence(json_path, T, weight=base_w)
             X.append(seq)
             y.append(label_idx)
             paths.append(json_path)
