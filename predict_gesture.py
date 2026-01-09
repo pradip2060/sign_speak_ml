@@ -11,6 +11,7 @@ from asl_config import (
     HAND_CONFIDENCE, POSE_CONFIDENCE,
     VIDEO_WIDTH, VIDEO_HEIGHT
 )
+from asl_config import IMPORTANT_LM_WEIGHTS
 
 import os
 import cv2
@@ -72,18 +73,24 @@ def extract_landmark_vec(frame_bgr: np.ndarray) -> np.ndarray:
     else:
         pose_arr = pose_arr[:POSE_DIM]
 
-    # ----- Hands -----
+    # ----- Hands (ここを学習コードのロジックに修正) -----
     hand_vals = []
     if hands_res.multi_hand_landmarks:
         for hand in hands_res.multi_hand_landmarks:
-            for lm in hand.landmark:
-                hand_vals.extend([
-                    lm.x,
-                    lm.y,
-                    lm.z * Z_SCALE
-                ])
+            for i, lm in enumerate(hand.landmark): # インデックス i を使用
+                x = lm.x
+                y = lm.y
+                z = lm.z * Z_SCALE
+                
+                # 指ごとの重み付けを適用（推論時は base_weight = HAND_WEIGHT 固定）
+                # w = 1.5 (HAND_WEIGHT) * (1.0 〜 3.5倍の指先強調)
+                w = HAND_WEIGHT * IMPORTANT_LM_WEIGHTS.get(i, 1.0)
+                
+                hand_vals.extend([x * w, y * w, z * w])
 
-    hands_arr = np.array(hand_vals, dtype=np.float32) * HAND_WEIGHT
+    # 配列化（※ループ内で w を掛けているので、最後に * HAND_WEIGHT はしない）
+    hands_arr = np.array(hand_vals, dtype=np.float32) 
+    
     if hands_arr.size < HANDS_DIM:
         hands_arr = np.pad(hands_arr, (0, HANDS_DIM - hands_arr.size))
     else:
