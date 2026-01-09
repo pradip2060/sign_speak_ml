@@ -16,7 +16,7 @@ def build_asl_model(T=40, land_dim=225, num_classes=9):
 model = build_asl_model() # 器を作る
 
 # ステップ1で作った重みファイルを読み込む
-weights_path = 'models/asl_weights_only.h5'
+weights_path = 'models/asl_weights_only.weights.h5'
 
 if os.path.exists(weights_path):
     model.load_weights(weights_path)
